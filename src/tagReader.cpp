@@ -1,7 +1,7 @@
 #include "lua.hpp"
 
-#include <fileref.h>
-#include <tag.h>
+#include <taglib/fileref.h>
+#include <taglib/tag.h>
 
 TagLib::FileRef f;
 
@@ -86,7 +86,7 @@ static const luaL_Reg API[] = {
     { NULL, NULL },
 };
 
-LUALIB_API "C" int luaopen_taglib(lua_State* L)
+LUALIB_API "C" int luaopen_taglib_tagReader(lua_State* L)
 {
     lua_newtable(L);
 #if LUA_VERSION_NUM < 502
