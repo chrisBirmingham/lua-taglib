@@ -106,6 +106,21 @@ static int free_tagReader(lua_State* L)
 {
     TagReader* reader = checkReader(L);
     free(reader->f);
+    reader->f = NULL;
+}
+
+/**
+ * Called when lua runs the garbage collector for the userdata. 
+ * Ensures that the file object is freed if the user does not call
+ * the close function explicitly 
+ */
+static int garbage_collect_tagReader(lua_State* L)
+{
+    TagReader* reader = checkReader(L);
+    if (reader->f != NULL) {
+        free(reader->f);
+        reader->f = NULL;
+    }
 }
 
 /**static int bitrate(lua_State *L)
@@ -127,10 +142,7 @@ static int channels(lua_State *L)
 
 /** Define the function names for lua to call */
 static const luaL_Reg tag_reader_f[] = {
-    {"tags", tags},
-    {"length", length},
     {"new", new_tagReader},
-    {"free", free_tagReader},
     { NULL, NULL },
 };
 
@@ -138,13 +150,25 @@ static const luaL_Reg tag_reader_f[] = {
 static const luaL_Reg tag_reader_m[] = {
     {"tags", tags},
     {"length", length},
+    {"close", free_tagReader},
+    {"__gc", garbage_collect_tagReader},
     {NULL, NULL}    
 };
 
 LUALIB_API "C" int luaopen_taglib_tagReader(lua_State* L)
 {
+    // Create the metatable for the userdata and assign function calls to it
     luaL_newmetatable(L, TAG_READER);
-    lua_newtable(L);
+    luaL_setfuncs(L, tag_reader_m, 0);
+    lua_pushliteral(L, "__index");
+    lua_pushvalue(L, -2);
+    lua_settable(L, -3);
+
+    // Create the metatable for the script and assign fucntion calls to it
+    luaL_newmetatable(L, "TAG_READER_API");
     luaL_setfuncs(L, tag_reader_f, 0);
+    lua_pushliteral(L, "__index");
+    lua_pushvalue(L, -2);
+    lua_settable(L, -3);
     return 1;
 }

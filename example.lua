@@ -8,7 +8,7 @@ local songReader = require ("taglib.tagReader")
 -- File exists
 song = songReader.new('song.mp3')
 
-tags = songReader.tags(song)
+tags = song:tags()
 print("Artist: " .. tags.artist)
 print("Album: " .. tags.album)
 print("Title: " .. tags.title)
@@ -18,21 +18,21 @@ print("Year: " .. tags.year)
 print("Comment: " .. tags.comment)
 
 -- audio values
-print("Length: " .. songReader.length(song))
+print("Length: " .. song:length())
 --print("Bitrate: " .. taglib.bitrate())
 --print("Sample Rate: " .. taglib.sampleRate())
 --print("Channels: " .. taglib.channels())
 --
 
-songReader.free(song)
+song:close()
 
 -- File does not exist
 song = songReader.new('fake.mp3')
 
-tags = songReader.tags(song)
+tags = song:tags()
 
 if tags == nil then
     print('File does not exist')
 end
 
-songReader.free(song)
+song:close()
