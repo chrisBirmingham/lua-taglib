@@ -110,9 +110,9 @@ static int free_tagReader(lua_State* L)
 }
 
 /**
- * Called when lua runs the garbage collector for the userdata. 
+ * Called when lua runs the garbage collector for the userdata.
  * Ensures that the file object is freed if the user does not call
- * the close function explicitly 
+ * the close function explicitly
  */
 static int garbage_collect_tagReader(lua_State* L)
 {
@@ -122,23 +122,6 @@ static int garbage_collect_tagReader(lua_State* L)
         reader->f = NULL;
     }
 }
-
-/**static int bitrate(lua_State *L)
-{
-    lua_pushinteger(L, f.audioProperties()->bitrate());
-    return 1;
-}
-static int sampleRate(lua_State *L)
-{
-    lua_pushinteger(L, f.audioProperties()->sampleRate());
-    return 1;
-}
-
-static int channels(lua_State *L)
-{
-    lua_pushinteger(L, f.audioProperties()->channels());
-    return 1;
-}*/
 
 /** Define the function names for lua to call */
 static const luaL_Reg tag_reader_f[] = {
@@ -152,7 +135,7 @@ static const luaL_Reg tag_reader_m[] = {
     {"length", length},
     {"close", free_tagReader},
     {"__gc", garbage_collect_tagReader},
-    {NULL, NULL}    
+    {NULL, NULL}
 };
 
 LUALIB_API "C" int luaopen_taglib_tagReader(lua_State* L)
