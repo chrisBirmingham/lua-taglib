@@ -107,7 +107,7 @@ static int track(lua_State *L)
     Tag* reader = checkReadWriter(L);
     if(!reader->failed && !reader->closed) {
         TagLib::FileRef* f = reader->tagFile;
-        lua_pushstring(L, f->tag()->track());
+        lua_pushinteger(L, f->tag()->track());
     } else {
         lua_pushnil(L);
     }
@@ -122,7 +122,7 @@ static int year(lua_State *L)
     Tag* reader = checkReadWriter(L);
     if(!reader->failed && !reader->closed) {
         TagLib::FileRef* f = reader->tagFile;
-        lua_pushstring(L, f->tag()->year());
+        lua_pushinteger(L, f->tag()->year());
     } else {
         lua_pushnil(L);
     }
@@ -149,7 +149,7 @@ static int genre(lua_State *L)
  */
 static int length(lua_State* L)
 {
-    Tag* reader = checkReader(L);
+    Tag* reader = checkReadWriter(L);
     if (!reader->failed && !reader->closed) {
         TagLib::FileRef* f = reader->tagFile;
         lua_pushinteger(L, f->audioProperties()->length());
@@ -165,8 +165,8 @@ static int length(lua_State* L)
 static int free_tagReadWriter(lua_State* L)
 {
     Tag* reader = checkReadWriter(L);
-    free(reader->f);
-    reader->f = NULL;
+    free(reader->tagFile);
+    reader->tagFile = NULL;
 }
 
 /**
@@ -178,8 +178,8 @@ static int garbage_collect_tagReadWriter(lua_State* L)
 {
     Tag* reader = checkReadWriter(L);
     if (reader->tagFile != NULL) {
-        free(reader->f);
-        reader->f = NULL;
+        free(reader->tagFile);
+        reader->tagFile = NULL;
     }
 }
 
@@ -196,7 +196,7 @@ static const luaL_Reg tag_methods[] = {
     {"album",  album},
     {"title",  title},
     {"track",  track},
-    {"year",   year}
+    {"year",   year},
     {"genre",  genre},
     {"length", length},
     {"close",  free_tagReadWriter},
