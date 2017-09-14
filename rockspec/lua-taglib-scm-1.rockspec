@@ -11,8 +11,8 @@ dependencies = {}
 build = {
     type = "builtin",
     modules = {
-        ["taglib.tagReader"] = {
-            sources = {"src/tagReader.cpp"},
+        ["taglib"] = {
+            sources = {"src/lua-taglib.cpp"},
             libraries = {"tag"}
         }
     }
