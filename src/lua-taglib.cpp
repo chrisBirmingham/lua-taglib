@@ -55,6 +55,19 @@ static int failed(lua_State *L)
 }
 
 /**
+ * Pushes a taglib string onto the lua stack. If the string is null converts to
+ * an empty string
+ */
+static void pushTagLibString(lua_State *L, TagLib::String str)
+{
+    if (str.isNull()) {
+        lua_pushstring(L, "");
+    } else {
+        lua_pushstring(L, str.toCString());
+    }
+}
+
+/**
     Retrieves the song artist
 */
 static int artist(lua_State *L)
@@ -62,7 +75,7 @@ static int artist(lua_State *L)
     Tag* reader = checkReadWriter(L);
     if(!reader->failed && !reader->closed) {
         TagLib::FileRef* f = reader->tagFile;
-        lua_pushstring(L, f->tag()->artist().toCString());
+        pushTagLibString(L, f->tag()->artist());
     } else {
         lua_pushnil(L);
     }
@@ -77,7 +90,7 @@ static int album(lua_State *L)
     Tag* reader = checkReadWriter(L);
     if(!reader->failed and !reader->closed) {
         TagLib::FileRef* f = reader->tagFile;
-        lua_pushstring(L, f->tag()->album().toCString());
+        pushTagLibString(L, f->tag()->album());
     } else {
         lua_pushnil(L);
     }
@@ -92,7 +105,7 @@ static int title(lua_State *L)
     Tag* reader = checkReadWriter(L);
     if(!reader->failed && !reader->closed) {
         TagLib::FileRef* f = reader->tagFile;
-        lua_pushstring(L, f->tag()->title().toCString());
+        pushTagLibString(L, f->tag()->title());
     } else {
         lua_pushnil(L);
     }
@@ -137,7 +150,7 @@ static int genre(lua_State *L)
     Tag* reader = checkReadWriter(L);
     if(!reader->failed && !reader->closed) {
         TagLib::FileRef* f = reader->tagFile;
-        lua_pushstring(L, f->tag()->genre().toCString());
+        pushTagLibString(L, f->tag()->genre());
     } else {
         lua_pushnil(L);
     }
