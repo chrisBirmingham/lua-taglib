@@ -1,17 +1,4 @@
-#include <lua.hpp>
-
-#include <taglib/fileref.h>
-#include <taglib/tag.h>
-
-#define TAG_READ_WRITE "TAG_READ_WRITE"
-
-struct tag {
-    TagLib::FileRef* tagFile;
-    bool failed;
-    bool closed;
-};
-
-typedef tag Tag;
+#include "lua-taglib.h"
 
 /**
  * Checks whether the first argument to a function of the userdata TAG_READ_WRITE
@@ -39,26 +26,40 @@ static Tag* createReadWriter(lua_State* L)
  */
 static int new_tagReadWriter(lua_State* L)
 {
-    const char* file    = luaL_checkstring(L, 1);
-    Tag* readWriter     = createReadWriter(L);
-    readWriter->tagFile = new TagLib::FileRef(file);
-    readWriter->failed  = (readWriter->tagFile->isNull() && !readWriter->tagFile->tag());
-    readWriter->closed  = false;
-    return 1;
-}
+    bool error = false;
+    int returnArgs = 1;
 
-static int failed(lua_State *L)
-{
-    Tag* reader = checkReadWriter(L);
-    lua_pushboolean(L, reader->failed);
-    return 1;
+    const char* file = luaL_checkstring(L, 1);
+    TagLib::FileRef* tagFile = new TagLib::FileRef(file);
+
+    if (tagFile->isNull()) {
+        error = true;
+        returnArgs = 2;
+        lua_pushnil(L);
+        lua_pushstring(L, "Failed to read input file");
+    }
+
+    if (!error && !tagFile->tag()) {
+        error = true;
+        returnArgs = 2;
+        lua_pushnil(L);
+        lua_pushstring(L, "Input file does not contain any tags");
+    }
+
+    if (!error) {
+        Tag* readWriter     = createReadWriter(L);
+        readWriter->tagFile = tagFile;
+        readWriter->closed  = false;
+    }
+
+    return returnArgs;
 }
 
 /**
  * Pushes a taglib string onto the lua stack. If the string is null converts to
  * an empty string
  */
-static void pushTagLibString(lua_State *L, TagLib::String str)
+static void pushTagLibString(lua_State* L, TagLib::String str)
 {
     if (str.isNull()) {
         lua_pushstring(L, "");
@@ -70,90 +71,66 @@ static void pushTagLibString(lua_State *L, TagLib::String str)
 /**
     Retrieves the song artist
 */
-static int artist(lua_State *L)
+static int artist(lua_State* L)
 {
     Tag* reader = checkReadWriter(L);
-    if(!reader->failed && !reader->closed) {
-        TagLib::FileRef* f = reader->tagFile;
-        pushTagLibString(L, f->tag()->artist());
-    } else {
-        lua_pushnil(L);
-    }
+    TagLib::FileRef* f = reader->tagFile;
+    pushTagLibString(L, f->tag()->artist());
     return 1;
 }
 
 /**
     Retrieves the songs album
 */
-static int album(lua_State *L)
+static int album(lua_State* L)
 {
     Tag* reader = checkReadWriter(L);
-    if(!reader->failed and !reader->closed) {
-        TagLib::FileRef* f = reader->tagFile;
-        pushTagLibString(L, f->tag()->album());
-    } else {
-        lua_pushnil(L);
-    }
+    TagLib::FileRef* f = reader->tagFile;
+    pushTagLibString(L, f->tag()->album());
     return 1;
 }
 
 /**
     Retrieves the songs title
 */
-static int title(lua_State *L)
+static int title(lua_State* L)
 {
     Tag* reader = checkReadWriter(L);
-    if(!reader->failed && !reader->closed) {
-        TagLib::FileRef* f = reader->tagFile;
-        pushTagLibString(L, f->tag()->title());
-    } else {
-        lua_pushnil(L);
-    }
+    TagLib::FileRef* f = reader->tagFile;
+    pushTagLibString(L, f->tag()->title());
     return 1;
 }
 
 /**
     Retrieves the songs track
 */
-static int track(lua_State *L)
+static int track(lua_State* L)
 {
     Tag* reader = checkReadWriter(L);
-    if(!reader->failed && !reader->closed) {
-        TagLib::FileRef* f = reader->tagFile;
-        lua_pushinteger(L, f->tag()->track());
-    } else {
-        lua_pushnil(L);
-    }
+    TagLib::FileRef* f = reader->tagFile;
+    lua_pushinteger(L, f->tag()->track());
     return 1;
 }
 
 /**
     Retrieves the songs year
 */
-static int year(lua_State *L)
+static int year(lua_State* L)
 {
     Tag* reader = checkReadWriter(L);
-    if(!reader->failed && !reader->closed) {
-        TagLib::FileRef* f = reader->tagFile;
-        lua_pushinteger(L, f->tag()->year());
-    } else {
-        lua_pushnil(L);
-    }
+    TagLib::FileRef* f = reader->tagFile;
+    lua_pushinteger(L, f->tag()->year());
     return 1;
 }
 
 /**
     Retrieves the songs genre
 */
-static int genre(lua_State *L)
+static int genre(lua_State* L)
 {
     Tag* reader = checkReadWriter(L);
-    if(!reader->failed && !reader->closed) {
-        TagLib::FileRef* f = reader->tagFile;
-        pushTagLibString(L, f->tag()->genre());
-    } else {
-        lua_pushnil(L);
-    }
+    TagLib::FileRef* f = reader->tagFile;
+    pushTagLibString(L, f->tag()->genre());
     return 1;
 }
 
@@ -163,12 +140,16 @@ static int genre(lua_State *L)
 static int length(lua_State* L)
 {
     Tag* reader = checkReadWriter(L);
-    if (!reader->failed && !reader->closed) {
-        TagLib::FileRef* f = reader->tagFile;
-        lua_pushinteger(L, f->audioProperties()->length());
-    } else {
-        lua_pushnil(L);
-    }
+    TagLib::FileRef* f = reader->tagFile;
+    lua_pushinteger(L, f->audioProperties()->length());
+    return 1;
+}
+
+static int albumArtwork(lua_State* L)
+{
+    lua_pushnil(L);
+    //Tag* reader = checkReadWriter(L);
+    //bool found = getAlbumArtwork(L, reader->tagFile);
     return 1;
 }
 
@@ -204,20 +185,20 @@ static const luaL_Reg tag_functions[] = {
 
 /* Define the lua mappings for the userdata methods */
 static const luaL_Reg tag_methods[] = {
-    {"failed", failed},
-    {"artist", artist},
-    {"album",  album},
-    {"title",  title},
-    {"track",  track},
-    {"year",   year},
-    {"genre",  genre},
-    {"length", length},
-    {"close",  free_tagReadWriter},
-    {"__gc",   garbage_collect_tagReadWriter},
-    {NULL,     NULL}
+    {"artist",       artist},
+    {"album",        album},
+    {"title",        title},
+    {"track",        track},
+    {"year",         year},
+    {"genre",        genre},
+    {"length",       length},
+    {"albumArtwork", albumArtwork},
+    {"close",        free_tagReadWriter},
+    {"__gc",         garbage_collect_tagReadWriter},
+    {NULL,           NULL}
 };
 
-LUALIB_API "C" int luaopen_taglib(lua_State* L)
+LUALIB_API int luaopen_taglib(lua_State* L)
 {
     /* Create the metatable for the userdata and assign function calls to it */
     luaL_newmetatable(L, TAG_READ_WRITE);
