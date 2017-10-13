@@ -15,10 +15,42 @@ static Tag* checkReadWriter(lua_State* L)
  */
 static Tag* createReadWriter(lua_State* L)
 {
-    Tag* readWriter = (Tag*)lua_newuserdata(L, sizeof(Tag) + sizeof(TagLib::FileRef*));
+    Tag* readWriter = (Tag*)lua_newuserdata(L, sizeof(Tag) + sizeof(TagLib::File*));
     luaL_getmetatable(L, TAG_READ_WRITE);
     lua_setmetatable(L, -2);
     return readWriter;
+}
+
+static TagLib::File* createTagLibObj(const char* file, const char* mime) {
+    TagLib::File* tagFile = NULL;
+
+    if (strcmp(mime, "audio/mp4") == 0) {
+        tagFile = new TagLib::MP4::File(file);
+    } else if (strcmp(mime, "audio/ogg") == 0) {
+        tagFile = new TagLib::Ogg::Vorbis::File(file);
+    } else if (strcmp(mime, "audio/mpeg") == 0) {
+        tagFile = new TagLib::MPEG::File(file);
+    } else if (strcmp(mime, "audio/flac") == 0) {
+        tagFile = new TagLib::FLAC::File(file);
+    } else if (strcmp(mime, "audio/x-musepack") == 0) {
+        tagFile = new TagLib::MPC::File(file);
+    } else if (strcmp(mime, "audio/musepack") == 0) {
+        tagFile = new TagLib::MPC::File(file);
+    } else if (strcmp(mime, "audio/x-tta") == 0) {
+        tagFile = new TagLib::TrueAudio::File(file);
+    } else if (strcmp(mime, "audio/x-monkeys-audio") == 0) {
+        tagFile = new TagLib::APE::File(file);
+    } else if (strcmp(mime, "audio/x-ms-wma") == 0) {
+        tagFile = new TagLib::ASF::File(file);
+    } else if (strcmp(mime, "audio/x-wv") == 0) {
+        tagFile = new TagLib::WavPack::File(file);
+    } else if (strcmp(mime, "audio/x-wav") == 0) {
+        tagFile = new TagLib::RIFF::WAV::File(file);
+    } else if (strcmp(mime, "audio/x-aiff") == 0) {
+        tagFile = new TagLib::RIFF::AIFF::File(file);
+    }
+
+    return tagFile;
 }
 
 /**
@@ -26,33 +58,53 @@ static Tag* createReadWriter(lua_State* L)
  */
 static int new_tagReadWriter(lua_State* L)
 {
-    bool error = false;
-    int returnArgs = 1;
-
     const char* file = luaL_checkstring(L, 1);
-    TagLib::FileRef* tagFile = new TagLib::FileRef(file);
+    const char* mime;
+    magic_t magicCookie;
 
-    if (tagFile->isNull()) {
-        error = true;
-        returnArgs = 2;
+    if ((magicCookie = magic_open(MAGIC_MIME_TYPE | MAGIC_ERROR)) == NULL) {
         lua_pushnil(L);
-        lua_pushstring(L, "Failed to read input file");
+        lua_pushstring(L, magic_error(magicCookie));
+        return 2;
     }
 
-    if (!error && !tagFile->tag()) {
-        error = true;
-        returnArgs = 2;
+    if (magic_load(magicCookie, NULL) != 0) {
         lua_pushnil(L);
-        lua_pushstring(L, "Input file does not contain any tags");
+        lua_pushstring(L, magic_error(magicCookie));
+        magic_close(magicCookie);
+        return 2;
     }
 
-    if (!error) {
-        Tag* readWriter     = createReadWriter(L);
-        readWriter->tagFile = tagFile;
-        readWriter->closed  = false;
+    if ((mime = magic_file(magicCookie, file)) == NULL) {
+        lua_pushnil(L);
+        lua_pushstring(L, magic_error(magicCookie));
+        magic_close(magicCookie);
+        return 2;
     }
 
-    return returnArgs;
+    TagLib::File* tagFile;
+
+    if ((tagFile = createTagLibObj(file, mime)) == NULL) {
+        lua_pushnil(L);
+        lua_pushstring(L, "Invalid mime type provided");
+        magic_close(magicCookie);
+        return 2;
+    }
+
+    if (!tagFile->isValid()) {
+        lua_pushnil(L);
+        lua_pushstring(L, "The input file provided is not valid");
+        return 2;
+    }
+
+    Tag* readWriter      = createReadWriter(L);
+    readWriter->tagFile  = tagFile;
+    readWriter->mimeType = new std::string(mime, strlen(mime));
+    readWriter->closed   = false;
+
+    magic_close(magicCookie);
+
+    return 1;
 }
 
 /**
@@ -74,7 +126,7 @@ static void pushTagLibString(lua_State* L, TagLib::String str)
 static int artist(lua_State* L)
 {
     Tag* reader = checkReadWriter(L);
-    TagLib::FileRef* f = reader->tagFile;
+    TagLib::File* f = reader->tagFile;
     pushTagLibString(L, f->tag()->artist());
     return 1;
 }
@@ -85,7 +137,7 @@ static int artist(lua_State* L)
 static int album(lua_State* L)
 {
     Tag* reader = checkReadWriter(L);
-    TagLib::FileRef* f = reader->tagFile;
+    TagLib::File* f = reader->tagFile;
     pushTagLibString(L, f->tag()->album());
     return 1;
 }
@@ -96,7 +148,7 @@ static int album(lua_State* L)
 static int title(lua_State* L)
 {
     Tag* reader = checkReadWriter(L);
-    TagLib::FileRef* f = reader->tagFile;
+    TagLib::File* f = reader->tagFile;
     pushTagLibString(L, f->tag()->title());
     return 1;
 }
@@ -107,7 +159,7 @@ static int title(lua_State* L)
 static int track(lua_State* L)
 {
     Tag* reader = checkReadWriter(L);
-    TagLib::FileRef* f = reader->tagFile;
+    TagLib::File* f = reader->tagFile;
     lua_pushinteger(L, f->tag()->track());
     return 1;
 }
@@ -118,7 +170,7 @@ static int track(lua_State* L)
 static int year(lua_State* L)
 {
     Tag* reader = checkReadWriter(L);
-    TagLib::FileRef* f = reader->tagFile;
+    TagLib::File* f = reader->tagFile;
     lua_pushinteger(L, f->tag()->year());
     return 1;
 }
@@ -129,7 +181,7 @@ static int year(lua_State* L)
 static int genre(lua_State* L)
 {
     Tag* reader = checkReadWriter(L);
-    TagLib::FileRef* f = reader->tagFile;
+    TagLib::File* f = reader->tagFile;
     pushTagLibString(L, f->tag()->genre());
     return 1;
 }
@@ -140,8 +192,15 @@ static int genre(lua_State* L)
 static int length(lua_State* L)
 {
     Tag* reader = checkReadWriter(L);
-    TagLib::FileRef* f = reader->tagFile;
+    TagLib::File* f = reader->tagFile;
     lua_pushinteger(L, f->audioProperties()->length());
+    return 1;
+}
+
+static int mimeType(lua_State* L)
+{
+    Tag* reader = checkReadWriter(L);
+    lua_pushstring(L, reader->mimeType->c_str());
     return 1;
 }
 
@@ -160,6 +219,7 @@ static int free_tagReadWriter(lua_State* L)
 {
     Tag* reader = checkReadWriter(L);
     free(reader->tagFile);
+    free(reader->mimeType);
     reader->tagFile = NULL;
 }
 
@@ -193,6 +253,7 @@ static const luaL_Reg tag_methods[] = {
     {"genre",        genre},
     {"length",       length},
     {"albumArtwork", albumArtwork},
+    {"mimeType",     mimeType},
     {"close",        free_tagReadWriter},
     {"__gc",         garbage_collect_tagReadWriter},
     {NULL,           NULL}
