@@ -94,6 +94,7 @@ static int new_tagReadWriter(lua_State* L)
     if (!tagFile->isValid()) {
         lua_pushnil(L);
         lua_pushstring(L, "The input file provided is not valid");
+        magic_close(magicCookie);
         return 2;
     }
 

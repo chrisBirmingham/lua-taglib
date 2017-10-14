@@ -17,7 +17,6 @@
 #include <taglib/aifffile.h>
 #include <magic.h>
 #include <string.h>
-#include <stdio.h>
 
 #define TAG_READ_WRITE "TAG_READ_WRITE"
 
