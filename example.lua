@@ -5,17 +5,17 @@ local songTagger = require ("taglib")
   and how to use them.
 ]]
 
-local song = songTagger.new('song.mp3')
+local song, errMesg = songTagger.new('song.mp3')
 
-if not song:failed() then
-    print('Title:'        .. song:title())
+if song then
+    print('Title: '       .. song:title())
     print('Artist: '      .. song:artist())
     print('Album: '       .. song:album())
     print('Genre: '       .. song:genre())
     print('Track: '       .. song:track())
     print('Song Length: ' .. song:length())
+    print('Song Mime:   ' .. song:mimeType())
+    song:close()
 else
-    print('Failed to read the song file')
+    print('Failed to read the song file. Reason: ' .. errMesg)
 end
-
-song:close()

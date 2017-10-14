@@ -4,11 +4,25 @@
 #include <lua.hpp>
 #include <taglib/fileref.h>
 #include <taglib/tag.h>
+#include <taglib/mp4file.h>
+#include <taglib/vorbisfile.h>
+#include <taglib/mpegfile.h>
+#include <taglib/apefile.h>
+#include <taglib/flacfile.h>
+#include <taglib/mpcfile.h>
+#include <taglib/trueaudiofile.h>
+#include <taglib/asffile.h>
+#include <taglib/wavpackfile.h>
+#include <taglib/wavfile.h>
+#include <taglib/aifffile.h>
+#include <magic.h>
+#include <string.h>
 
 #define TAG_READ_WRITE "TAG_READ_WRITE"
 
 struct tag {
-    TagLib::FileRef* tagFile;
+    TagLib::File* tagFile;
+    std::string* mimeType;
     bool closed;
 };
 

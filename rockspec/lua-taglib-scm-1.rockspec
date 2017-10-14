@@ -13,7 +13,7 @@ build = {
     modules = {
         ["taglib"] = {
             sources = {"src/lua-taglib.cpp"},
-            libraries = {"tag"}
+            libraries = {"tag", "magic"}
         }
     }
 }
