@@ -17,6 +17,7 @@
 #include <taglib/aifffile.h>
 #include <magic.h>
 #include <string.h>
+#include "lua-taglib-cover.h"
 
 #define TAG_READ_WRITE "TAG_READ_WRITE"
 

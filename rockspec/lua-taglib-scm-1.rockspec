@@ -12,7 +12,7 @@ build = {
     type = "builtin",
     modules = {
         ["taglib"] = {
-            sources = {"src/lua-taglib.cpp"},
+            sources = {"src/lua-taglib.cpp", "src/lua-taglib-cover.cpp"},
             libraries = {"tag", "magic"}
         }
     }

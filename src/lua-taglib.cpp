@@ -207,10 +207,41 @@ static int mimeType(lua_State* L)
 
 static int albumArtwork(lua_State* L)
 {
-    lua_pushnil(L);
-    //Tag* reader = checkReadWriter(L);
-    //bool found = getAlbumArtwork(L, reader->tagFile);
-    return 1;
+    Tag* reader = checkReadWriter(L);
+    TagLib::File* fr = reader->tagFile;
+    const char* mimeType = reader->mimeType->c_str();
+    TagLib::ByteVector* data;
+    if ((data = getAlbumArtwork(L, fr, mimeType)) != NULL) {
+        const char* mime;
+        magic_t magicCookie;
+
+        if ((magicCookie = magic_open(MAGIC_MIME_TYPE | MAGIC_ERROR)) == NULL) {
+            lua_pushnil(L);
+            lua_pushstring(L, magic_error(magicCookie));
+            return 2;
+        }
+
+        if (magic_load(magicCookie, NULL) != 0) {
+            lua_pushnil(L);
+            lua_pushstring(L, magic_error(magicCookie));
+            magic_close(magicCookie);
+            return 2;
+        }
+
+        if ((mime = magic_buffer(magicCookie, data->data(), data->size())) == NULL) {
+            lua_pushnil(L);
+            lua_pushstring(L, magic_error(magicCookie));
+            magic_close(magicCookie);
+            return 2;
+        }
+
+        TagAlbumArtwork* album = createAlbumArtwork(L);
+        album->data            = data;
+        album->mimeType        = new std::string(mime, strlen(mime));
+        return 1;
+    }
+
+    return 2;
 }
 
 /**
@@ -263,10 +294,20 @@ static const luaL_Reg tag_methods[] = {
 LUALIB_API int luaopen_taglib(lua_State* L)
 {
     /* Create the metatable for the userdata and assign function calls to it */
+
+    /* Assign the methods for the album artwork userdata */
+    luaL_newmetatable(L, TAG_ALBUM_ART);
+    lua_pushvalue(L, -1);
+    lua_setfield(L, -2, "__index");
+    luaL_setfuncs(L, album_methods, 0);
+
+    /* Assign the methods for the tag read writer userdata */
     luaL_newmetatable(L, TAG_READ_WRITE);
     lua_pushvalue(L, -1);
     lua_setfield(L, -2, "__index");
     luaL_setfuncs(L, tag_methods, 0);
+
+    /* Assign the global fucntions to the library on require */
     luaL_newlib(L, tag_functions);
     return 1;
 }
