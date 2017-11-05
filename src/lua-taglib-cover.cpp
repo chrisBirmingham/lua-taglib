@@ -1,9 +1,11 @@
 #include "lua-taglib-cover.h"
 
-const char* NO_ALBUM_DATA = "Audio file does not contain any album artwork";
-const char* NOT_SUPPORTED = "The audio file provided does not support the storage of album artwork";
+using namespace LuaTagLib;
 
-static TagLib::ByteVector* extractAPE(TagLib::APE::Tag* tag)
+const std::string NO_ALBUM_DATA = "Audio file does not contain any album artwork";
+const std::string NOT_SUPPORTED = "The audio file provided does not support the storage of album artwork";
+
+bool Cover::Artwork::extractAPE(const TagLib::APE::Tag* tag)
 {
     const TagLib::APE::ItemListMap& listMap = tag->itemListMap();
     if (listMap.contains("COVER ART (FRONT)")) {
@@ -12,188 +14,145 @@ static TagLib::ByteVector* extractAPE(TagLib::APE::Tag* tag)
         int pos;
         if ((pos = item.find(nullStringTerminator)) != -1) {	// Skip the filename.
             const TagLib::ByteVector& pic = item.mid(pos + 1);
-            return new TagLib::ByteVector(pic.data(), pic.size());
+            data = new TagLib::ByteVector(pic.data(), pic.size());
+            return true;
         }
     }
 
-    return NULL;
+    return false;
 }
 
-static TagLib::ByteVector* extractASF(TagLib::ASF::File* file)
+bool Cover::Artwork::extractASF(const TagLib::ASF::File* asfFile)
 {
-    const TagLib::ASF::AttributeListMap& attrListMap = file->tag()->attributeListMap();
+    const TagLib::ASF::AttributeListMap& attrListMap = asfFile->tag()->attributeListMap();
     if (attrListMap.contains("WM/Picture")) {
         const TagLib::ASF::AttributeList& attrList = attrListMap["WM/Picture"];
         if (!attrList.isEmpty()) {
             for (int i = 0; i < attrList.size(); i++) {
                 const TagLib::ASF::Picture& wmpic = attrList[i].toPicture();
                 if (wmpic.isValid()) {
-                    return new TagLib::ByteVector(wmpic.picture().data(), wmpic.picture().size());
+                    this->data = new TagLib::ByteVector(wmpic.picture().data(), wmpic.picture().size());
+                    return true;
                 }
             }
         }
     }
 
-    return NULL;
+    return false;
 }
 
-static TagLib::ByteVector* extractFLAC(TagLib::FLAC::File* file)
+bool Cover::Artwork::extractFLAC(TagLib::FLAC::File* flacFile)
 {
-    const TagLib::List<TagLib::FLAC::Picture*>& picList = file->pictureList();
+    const TagLib::List<TagLib::FLAC::Picture*>& picList = flacFile->pictureList();
     if (!picList.isEmpty()) {
-        return new TagLib::ByteVector(picList[0]->data().data(), picList[0]->data().size());
-    }
-
-    return NULL;
-}
-
-static TagLib::ByteVector* extractMP4(TagLib::MP4::File* file)
-{
-    TagLib::MP4::Tag* tag = file->tag();
-    const TagLib::MP4::ItemListMap& itemListMap = tag->itemListMap();
-    if (itemListMap.contains("covr")) {
-        const TagLib::MP4::CoverArtList& coverArtList = itemListMap["covr"].toCoverArtList();
-        if (!coverArtList.isEmpty()) {
-            return new TagLib::ByteVector(coverArtList.front().data().data(), coverArtList.front().data().size());
-        }
-    }
-
-    return NULL;
-}
-
-static TagLib::ByteVector* extractID3(TagLib::ID3v2::Tag* tag)
-{
-	const TagLib::ID3v2::FrameList& frameList = tag->frameList("APIC");
-	if (!frameList.isEmpty()) {
-        TagLib::ID3v2::AttachedPictureFrame* frame = (TagLib::ID3v2::AttachedPictureFrame*) frameList.front();
-        return new TagLib::ByteVector(frame->picture().data(), frame->picture().size());
-	}
-
-	return NULL;
-}
-
-static bool supportsAlbumArt(const char* mimeType)
-{
-    if (strcmp(mimeType, "audio/mpeg") == 0) {
-        return true;
-    } else if (strcmp(mimeType, "audio/flac") == 0) {
-        return true;
-    } else if (strcmp(mimeType, "audio/mp4") == 0) {
-        return true;
-    } else if (strcmp(mimeType, "audio/x-ms-wma") == 0) {
-        return true;
-    } else if (strcmp(mimeType, "audio/x-monkeys-audio") == 0) {
-        return true;
-    } else if (strcmp(mimeType, "audio/x-musepack") == 0) {
+        this->data = new TagLib::ByteVector(picList[0]->data().data(), picList[0]->data().size());
         return true;
     }
 
     return false;
 }
 
-TagLib::ByteVector* getAlbumArtwork(lua_State* L, TagLib::File* fr, const char* mimeType)
+bool Cover::Artwork::extractMP4(const TagLib::MP4::File* mp4File)
 {
-    // Check if the mime type supports album artwork
-    if (!supportsAlbumArt(mimeType)) {
-        // if not return with error message
-        lua_pushnil(L);
-        lua_pushstring(L, NOT_SUPPORTED);
-        return NULL;
+    //if (mp4File->hasMP4Tag()) {
+        TagLib::MP4::Tag* tag = mp4File->tag();
+        const TagLib::MP4::ItemListMap& itemListMap = tag->itemListMap();
+        if (itemListMap.contains("covr")) {
+            const TagLib::MP4::CoverArtList& coverArtList = itemListMap["covr"].toCoverArtList();
+            if (!coverArtList.isEmpty()) {
+                this->data = new TagLib::ByteVector(coverArtList.front().data().data(), coverArtList.front().data().size());
+                return true;
+            }
+        }
+    //}
+
+    return false;
+}
+
+bool Cover::Artwork::extractID3(const TagLib::ID3v2::Tag* tag)
+{
+    const TagLib::ID3v2::FrameList& frameList = tag->frameList("APIC");
+    if (!frameList.isEmpty()) {
+        TagLib::ID3v2::AttachedPictureFrame* frame = (TagLib::ID3v2::AttachedPictureFrame*) frameList.front();
+        this->data = new TagLib::ByteVector(frame->picture().data(), frame->picture().size());
+        return true;
     }
 
-    TagLib::ByteVector* tmp;
-    if (strcmp(mimeType, "audio/mpeg") == 0) {
-        TagLib::MPEG::File* f = static_cast<TagLib::MPEG::File*>(fr);
-        if (f->ID3v2Tag() && (tmp = extractID3(f->ID3v2Tag())) != NULL) {
-            return tmp;
+	return false;
+}
+
+bool Cover::Artwork::supportsAlbumArt(std::string mimetype)
+{
+    if (mimetype == "audio/mpeg") {
+        return true;
+    } else if (mimetype == "audio/flac") {
+        return true;
+    } else if (mimetype == "audio/mp4") {
+        return true;
+    } else if (mimetype == "audio/x-ms-wma") {
+        return true;
+    } else if (mimetype == "audio/x-monkeys-audio") {
+        return true;
+    } else if (mimetype == "audio/x-musepack") {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Attempts to retrieve the album artwork stored inside an audio file.
+ * Uses static casting as the object is of the desired type
+ */
+bool Cover::Artwork::getAlbumArtwork(TagLib::File* file, std::string mime)
+{
+    // Check if the mime type supports album artwork
+    if (!this->supportsAlbumArt(mime)) {
+        this->errorMessage = NOT_SUPPORTED;
+        return false;
+    }
+
+    bool found = false;
+
+    if (mime == "audio/mpeg") {
+        TagLib::MPEG::File* f = static_cast<TagLib::MPEG::File*>(file);
+        if (f->hasID3v2Tag()) {
+            found = this->extractID3(f->ID3v2Tag());
         }
 
-        if (f->APETag() && (tmp = extractAPE(f->APETag())) != NULL) {
-            return tmp;
+        if (!found && f->hasAPETag()) {
+            found = this->extractAPE(f->APETag());
         }
 
-    } else if (strcmp(mimeType, "audio/flac") == 0) {
-        TagLib::FLAC::File* f = static_cast<TagLib::FLAC::File*>(fr);
+    } else if (mime == "audio/flac") {
+        TagLib::FLAC::File* f = static_cast<TagLib::FLAC::File*>(file);
+        found = this->extractFLAC(f);
 
-        if ((tmp = extractFLAC(f)) != NULL) {
-            return tmp;
+        if (!found && f->hasID3v2Tag()) {
+            found = this->extractID3(f->ID3v2Tag());
         }
-
-        if (f->ID3v2Tag() && (tmp = extractID3(f->ID3v2Tag())) != NULL) {
-            return tmp;
+    } else if (mime == "audio/mp4") {
+        TagLib::MP4::File* f = static_cast<TagLib::MP4::File*>(file);
+        found = this->extractMP4(f);
+    } else if (mime == "audio/x-ms-wma") {
+        TagLib::ASF::File* f = static_cast<TagLib::ASF::File*>(file);
+        found = this->extractASF(f);
+    } else if (mime == "audio/x-monkeys-audio") {
+        TagLib::APE::File* f = static_cast<TagLib::APE::File*>(file);
+        if (f->hasAPETag()) {
+            found = this->extractAPE(f->APETag());
         }
-    } else if (strcmp(mimeType, "audio/mp4") == 0) {
-        TagLib::MP4::File* f = static_cast<TagLib::MP4::File*>(fr);
-        if ((tmp = extractMP4(f))) {
-            return tmp;
-        }
-    } else if (strcmp(mimeType, "audio/x-ms-wma") == 0) {
-        TagLib::ASF::File* f = static_cast<TagLib::ASF::File*>(fr);
-        if ((tmp = extractASF(f)) != NULL) {
-            return tmp;
-        }
-    } else if (strcmp(mimeType, "audio/x-monkeys-audio") == 0) {
-        TagLib::APE::File* f = static_cast<TagLib::APE::File*>(fr);
-        if (f->APETag() && (tmp = extractAPE(f->APETag())) != NULL) {
-            return tmp;
-        }
-    } else if (strcmp(mimeType, "audio/x-musepack") == 0) {
-        TagLib::MPC::File* f = static_cast<TagLib::MPC::File*>(fr);
-        if (f->APETag() && (tmp = extractAPE(f->APETag())) != NULL) {
-            return tmp;
+    } else if (mime == "audio/x-musepack") {
+        TagLib::MPC::File* f = static_cast<TagLib::MPC::File*>(file);
+        if (f->hasAPETag()) {
+            found = this->extractAPE(f->APETag());
         }
     }
 
     // If we hit here we have no album data, return with that info
-    lua_pushnil(L);
-    lua_pushstring(L, NO_ALBUM_DATA);
-    return NULL;
+    if (!found) {
+        this->errorMessage = NO_ALBUM_DATA;
+        return false;
+    }
+    return true;
 }
-
-/**
- * Checks whether the first argument to a function of the userdata TAG_READ_WRITE
- */
-static TagAlbumArtwork* checkAlbumArtwork(lua_State* L)
-{
-    void* artwork = luaL_checkudata(L, 1, TAG_ALBUM_ART);
-    luaL_argcheck(L, artwork != NULL, 1, "`album class' expected");
-    return (TagAlbumArtwork*)artwork;
-}
-
-/**
- * Creates a tag reader userdata
- */
-TagAlbumArtwork* createAlbumArtwork(lua_State* L)
-{
-    TagAlbumArtwork* album = (TagAlbumArtwork*)lua_newuserdata(L, sizeof(TagAlbumArtwork) + sizeof(TagLib::ByteVector));
-    luaL_getmetatable(L, TAG_ALBUM_ART);
-    lua_setmetatable(L, -2);
-    return album;
-}
-
-static int data(lua_State* L){
-    TagAlbumArtwork* tagAlbum = checkAlbumArtwork(L);
-    lua_pushlstring(L, tagAlbum->data->data(), tagAlbum->data->size());
-    return 1;
-}
-
-static int mimeType(lua_State* L)
-{
-    TagAlbumArtwork* tagAlbum = checkAlbumArtwork(L);
-    lua_pushstring(L, tagAlbum->mimeType->c_str());
-    return 1;
-}
-
-static int size(lua_State* L)
-{
-    TagAlbumArtwork* tagAlbum = checkAlbumArtwork(L);
-    lua_pushinteger(L, tagAlbum->data->size());
-    return 1;
-}
-
-const luaL_Reg album_methods[] = {
-    {"data",     data},
-    {"mimeType", mimeType},
-    {"size",     size},
-    {NULL,       NULL}
-};

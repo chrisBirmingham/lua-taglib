@@ -15,6 +15,7 @@
 #include <taglib/mpcfile.h>
 #include <taglib/mpegfile.h>
 #include <taglib/mp4file.h>
+#include <taglib/mp4tag.h>
 #include <taglib/textidentificationframe.h>
 #include <taglib/tstring.h>
 #include <taglib/vorbisfile.h>
@@ -22,36 +23,49 @@
 #include <string>
 #include "lua-taglib.h"
 
-#define TAG_ALBUM_ART "TAG_ALBUM_ART"
+namespace LuaTagLib {
 
-struct tagAlbumArtwork {
-    TagLib::ByteVector* data;
-    std::string* mimeType;
-};
+    namespace Cover {
 
-typedef tagAlbumArtwork TagAlbumArtwork;
-static TagLib::ByteVector* extractAPE(TagLib::APE::Tag* tag);
+        class Artwork {
+            protected:
+                TagLib::ByteVector* data;
 
-static TagLib::ByteVector* extractASF(TagLib::ASF::File* file);
+                std::string errorMessage;
 
-static TagLib::ByteVector* extractFLAC(TagLib::FLAC::File* file);
+                bool extractAPE(const TagLib::APE::Tag* tag);
 
-static TagLib::ByteVector* extractMP4(TagLib::MP4::File* file);
+                bool extractASF(const TagLib::ASF::File* asfFile);
 
-static TagLib::ByteVector* extractID3(TagLib::ID3v2::Tag* tag);
+                bool extractFLAC(TagLib::FLAC::File* flacFile);
 
-static bool supportsAlbumArt(const char* mimeType);
+                bool extractMP4(const TagLib::MP4::File* mp4File);
 
-TagLib::ByteVector* getAlbumArtwork(lua_State* L, TagLib::File* fr, const char* mimeType);
+                bool extractID3(const TagLib::ID3v2::Tag* tag);
 
-TagAlbumArtwork* createAlbumArtwork(lua_State* L);
+                bool supportsAlbumArt(std::string mimetype);
 
-static int data(lua_State* L);
+            public:
+                Artwork() : data(NULL), errorMessage("") {}
 
-static int mimeType(lua_State* L);
+                inline const TagLib::ByteVector* getData() const
+                {
+                    return this->data;
+                }
 
-static int size(lua_State* L);
+                inline const std::string getErrorMessage() const
+                {
+                    return this->errorMessage;
+                }
 
-extern const luaL_Reg album_methods[];
+                bool getAlbumArtwork(TagLib::File* file, std::string mime);
+
+                ~Artwork()
+                {
+                    free(this->data);
+                }
+        };
+    }
+}
 
 #endif
