@@ -15,47 +15,23 @@
 #include <taglib/wavpackfile.h>
 #include <taglib/wavfile.h>
 #include <taglib/aifffile.h>
-#include <magic.h>
 #include <string.h>
+#include <stdio.h>
+#include "lua-taglib-cover.h"
+#include "lua-taglib-magic.h"
 
 #define TAG_READ_WRITE "TAG_READ_WRITE"
+#define TAG_ALBUM_ART "TAG_ALBUM_ART"
 
-struct tag {
-    TagLib::File* tagFile;
-    std::string* mimeType;
-    bool closed;
-};
+namespace LuaTagLib {
 
-typedef tag Tag;
+    struct LuaTag {
+        TagLib::File* tagFile;
+        std::string* mimeType;
+    };
 
-static Tag* checkReadWriter(lua_State* L);
+    struct LuaTagAlbumArtwork;
 
-static Tag* createReadWriter(lua_State* L);
-
-static int new_tagReadWriter(lua_State* L);
-
-static void pushTagLibString(lua_State* L, TagLib::String str);
-
-static int artist(lua_State* L);
-
-static int album(lua_State* L);
-
-static int title(lua_State* L);
-
-static int track(lua_State* L);
-
-static int year(lua_State* L);
-
-static int genre(lua_State* L);
-
-static int length(lua_State* L);
-
-static int albumArtwork(lua_State* L);
-
-static int free_tagReadWriter(lua_State* L);
-
-static int garbage_collect_tagReadWriter(lua_State* L);
-
-LUALIB_API int luaopen_taglib(lua_State* L);
+}
 
 #endif

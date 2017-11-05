@@ -36,6 +36,8 @@ Creates a new taglib userdata to retrieve music metadata. On failure it returns 
 
 All userdata methods throw catchable errors if their first argument is not the userdata itself.
 
+####Song Methods
+
 ```lua
 song.artist(song) : string
 song:artist() : string
@@ -93,11 +95,41 @@ song:mimeType() : string
 Retrieves the mime type of the provided song file. Mainly used a debugging libmagic functionality.
 
 ```lua
+song.artwork(song) : usersdata | nil string
+song:artwork() : userdata | nil string
+```
+
+Returns a userdata with methods for dealing storedc album artwork if the music file does contains an album image. Returns nil and an error message if an error occurs or the music file does not include an album image.
+
+```lua
 song.close(song)
 song:close()
 ```
 
 Closes the song and frees the memory used by the associated objects. This function can be called explicity or will be called when lua runs its garbage collector.
+
+####Cover Artwork Methods
+
+```lua
+artwork.data(artwork) : string
+artwork:data() : string
+```
+
+Returns the buffer of the cover art image as a string
+
+```lua
+artwork.size(artwork) : number
+artwork:size() : number
+```
+
+Returns the length of the image buffer
+
+```lua
+artwork.mimeType(artwork) : string
+artwrok:mimeType() : string
+```
+
+Returns the mime type of the stored cover art image
 
 ## TODO ##
 
